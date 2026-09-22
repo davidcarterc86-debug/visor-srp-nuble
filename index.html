@@ -1,0 +1,775 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SRP Ñuble — Sistema de Registro de Personas</title>
+<style>
+  :root{
+    --bg:#0b0f14;
+    --panel:#121820;
+    --panel-2:#161d27;
+    --border:#232c38;
+    --text:#e6edf3;
+    --text-dim:#8b98a9;
+    --accent:#39c0c9;
+    --accent-2:#4f8cff;
+    --accent-3:#7ee787;
+    --warn:#f2a65a;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:var(--bg);
+    color:var(--text);
+    font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;
+  }
+  header.app-header{
+    padding:22px 28px 18px;
+    border-bottom:1px solid var(--border);
+    background:linear-gradient(180deg,#0e141b,#0b0f14);
+  }
+  header.app-header h1{
+    margin:0;
+    font-size:22px;
+    letter-spacing:.3px;
+    font-weight:700;
+  }
+  header.app-header .subtitulo{
+    margin-top:4px;
+    color:var(--text-dim);
+    font-size:14px;
+  }
+  header.app-header .total-badge{
+    margin-top:10px;
+    display:inline-block;
+    padding:6px 14px;
+    border-radius:999px;
+    background:rgba(57,192,201,.12);
+    border:1px solid rgba(57,192,201,.35);
+    color:var(--accent);
+    font-weight:600;
+    font-size:13px;
+  }
+  main{
+    padding:20px 28px 60px;
+    max-width:1440px;
+    margin:0 auto;
+  }
+  .kpi-grid{
+    display:grid;
+    grid-template-columns:repeat(4,1fr);
+    gap:14px;
+    margin-bottom:20px;
+  }
+  .kpi-card{
+    background:var(--panel);
+    border:1px solid var(--border);
+    border-radius:10px;
+    padding:16px 18px;
+  }
+  .kpi-card .label{
+    font-size:11px;
+    text-transform:uppercase;
+    letter-spacing:.6px;
+    color:var(--text-dim);
+    margin-bottom:8px;
+  }
+  .kpi-card .value{
+    font-size:26px;
+    font-weight:700;
+    color:var(--accent);
+  }
+  .kpi-card .value.small{ font-size:18px; }
+  .kpi-card .sub{ font-size:12px; color:var(--text-dim); margin-top:4px; }
+
+  .panel{
+    background:var(--panel);
+    border:1px solid var(--border);
+    border-radius:10px;
+    padding:16px 18px;
+  }
+  .panel h2{
+    font-size:13px;
+    text-transform:uppercase;
+    letter-spacing:.5px;
+    color:var(--text-dim);
+    margin:0 0 12px;
+    font-weight:600;
+  }
+
+  .filters{
+    margin-bottom:20px;
+  }
+  .filters-row{
+    display:flex;
+    flex-wrap:wrap;
+    gap:12px;
+    align-items:flex-end;
+  }
+  .filter-field{
+    display:flex;
+    flex-direction:column;
+    gap:5px;
+    min-width:150px;
+  }
+  .filter-field label{
+    font-size:11px;
+    color:var(--text-dim);
+    text-transform:uppercase;
+    letter-spacing:.4px;
+  }
+  .filter-field select,
+  .filter-field input{
+    background:var(--panel-2);
+    border:1px solid var(--border);
+    color:var(--text);
+    padding:7px 9px;
+    border-radius:6px;
+    font-size:13px;
+  }
+  .filter-field select:focus,
+  .filter-field input:focus{
+    outline:none;
+    border-color:var(--accent);
+  }
+  .btn-clear{
+    background:transparent;
+    border:1px solid var(--accent);
+    color:var(--accent);
+    padding:8px 16px;
+    border-radius:6px;
+    font-size:13px;
+    cursor:pointer;
+    height:34px;
+  }
+  .btn-clear:hover{ background:rgba(57,192,201,.1); }
+
+  .charts-main{
+    display:grid;
+    grid-template-columns:1.6fr 1fr;
+    gap:14px;
+    margin-bottom:14px;
+  }
+  .charts-row3{
+    display:grid;
+    grid-template-columns:repeat(3,1fr);
+    gap:14px;
+    margin-bottom:20px;
+  }
+  .charts-secondary{
+    display:grid;
+    grid-template-columns:repeat(3,1fr);
+    gap:14px;
+    margin-bottom:20px;
+  }
+  .chart-note{ font-size:11px; color:var(--text-dim); margin-top:8px; }
+
+  svg text{ fill:var(--text-dim); font-size:11px; }
+  .bar{ fill:var(--accent); }
+  .bar.alt{ fill:var(--accent-2); }
+  .bar-otras{ fill:#3a4553; }
+  .bar-label{ fill:var(--text); font-size:11px; }
+  .axis-line{ stroke:var(--border); stroke-width:1; }
+  .line-path{ fill:none; stroke:var(--accent); stroke-width:2; }
+  .area-path{ fill:rgba(57,192,201,.15); stroke:none; }
+  .dot{ fill:var(--accent); }
+
+  #estado-carga{
+    padding:60px 20px;
+    text-align:center;
+    color:var(--text-dim);
+  }
+
+  footer.app-footer{
+    padding:16px 28px 30px;
+    color:var(--text-dim);
+    font-size:11.5px;
+    max-width:1440px;
+    margin:0 auto;
+  }
+
+  @media (max-width:1100px){
+    .charts-main{ grid-template-columns:1fr; }
+    .charts-row3{ grid-template-columns:1fr 1fr; }
+    .charts-secondary{ grid-template-columns:1fr 1fr; }
+    .kpi-grid{ grid-template-columns:1fr 1fr; }
+  }
+  @media (max-width:640px){
+    main{ padding:16px; }
+    .charts-row3{ grid-template-columns:1fr; }
+    .charts-secondary{ grid-template-columns:1fr; }
+    .kpi-grid{ grid-template-columns:1fr; }
+  }
+</style>
+</head>
+<body>
+
+<header class="app-header">
+  <h1>Sistema de Registro de Personas — SRP</h1>
+  <div class="subtitulo">Registros de inmunización | Región de Ñuble</div>
+  <div class="total-badge" id="badge-total">Cargando registros…</div>
+</header>
+
+<main>
+  <div id="estado-carga">Cargando datos desde datos_nuble_publico.csv…</div>
+
+  <div id="app" style="display:none;">
+
+    <section class="kpi-grid">
+      <div class="kpi-card">
+        <div class="label">Registros válidos</div>
+        <div class="value" id="kpi-total">—</div>
+        <div class="sub">Registros de inmunización</div>
+      </div>
+      <div class="kpi-card">
+        <div class="label">Año con mayor cantidad</div>
+        <div class="value" id="kpi-anio">—</div>
+        <div class="sub" id="kpi-anio-sub">&nbsp;</div>
+      </div>
+      <div class="kpi-card">
+        <div class="label">Comuna de ocurrencia con mayor cantidad</div>
+        <div class="value small" id="kpi-comuna">—</div>
+        <div class="sub" id="kpi-comuna-sub">&nbsp;</div>
+      </div>
+      <div class="kpi-card">
+        <div class="label">Establecimientos con registros</div>
+        <div class="value" id="kpi-establecimientos">—</div>
+        <div class="sub">Distintos (según filtros aplicados)</div>
+      </div>
+    </section>
+
+    <section class="panel filters">
+      <h2>Filtros</h2>
+      <div class="filters-row">
+        <div class="filter-field">
+          <label for="f-anio">Año</label>
+          <select id="f-anio"><option value="">Todos</option></select>
+        </div>
+        <div class="filter-field">
+          <label for="f-fecha-desde">Fecha desde</label>
+          <input type="date" id="f-fecha-desde">
+        </div>
+        <div class="filter-field">
+          <label for="f-fecha-hasta">Fecha hasta</label>
+          <input type="date" id="f-fecha-hasta">
+        </div>
+        <div class="filter-field">
+          <label for="f-comuna-ocurr">Comuna de ocurrencia</label>
+          <select id="f-comuna-ocurr"><option value="">Todas</option></select>
+        </div>
+        <div class="filter-field">
+          <label for="f-comuna-resid">Comuna de residencia</label>
+          <select id="f-comuna-resid"><option value="">Todas</option></select>
+        </div>
+        <div class="filter-field">
+          <label for="f-sexo">Sexo</label>
+          <select id="f-sexo"><option value="">Todos</option></select>
+        </div>
+        <div class="filter-field">
+          <label for="f-dosis">Dosis</label>
+          <select id="f-dosis"><option value="">Todas</option></select>
+        </div>
+        <div class="filter-field">
+          <label for="f-grupo-etario">Grupo etario</label>
+          <select id="f-grupo-etario"><option value="">Todos</option></select>
+        </div>
+        <div class="filter-field">
+          <label for="f-tipo-servicio">Tipo de servicio</label>
+          <select id="f-tipo-servicio"><option value="">Todos</option></select>
+        </div>
+        <div class="filter-field" style="min-width:220px;">
+          <label for="f-establecimiento">Buscar establecimiento</label>
+          <input type="text" id="f-establecimiento" placeholder="Nombre del establecimiento…">
+        </div>
+        <button class="btn-clear" id="btn-limpiar">Limpiar filtros</button>
+      </div>
+    </section>
+
+    <section class="panel" style="margin-bottom:14px;">
+      <h2>Evolución mensual de registros</h2>
+      <div id="chart-evolucion"></div>
+    </section>
+
+    <section class="panel" style="margin-bottom:14px;">
+      <h2>Registros por comuna: ocurrencia vs. residencia</h2>
+      <div id="chart-comuna-mariposa"></div>
+      <div class="chart-note">Las 21 comunas de la Región de Ñuble, ordenadas de mayor a menor según el total combinado (ocurrencia + residencia). Ocurrencia a la izquierda, residencia a la derecha, misma escala en ambos lados.</div>
+    </section>
+
+    <section class="charts-row3">
+      <div class="panel">
+        <h2>Registros por grupo etario</h2>
+        <div id="chart-grupo-etario"></div>
+        <div class="chart-note">Grupo etario según años cumplidos, agrupado en tramos.</div>
+      </div>
+      <div class="panel">
+        <h2>Registros por dosis</h2>
+        <div id="chart-dosis"></div>
+      </div>
+      <div class="panel">
+        <h2>Registros por sexo</h2>
+        <div id="chart-sexo"></div>
+      </div>
+    </section>
+
+    <section class="charts-secondary">
+      <div class="panel">
+        <h2>Red Asistencial vs. SEREMI</h2>
+        <div id="chart-tipo-servicio"></div>
+      </div>
+      <div class="panel">
+        <h2>Principales establecimientos</h2>
+        <div id="chart-establecimientos"></div>
+        <div class="chart-note">Se muestran los 10 establecimientos con mayor cantidad de registros.</div>
+      </div>
+      <div class="panel">
+        <h2>País de origen</h2>
+        <div id="chart-pais-origen"></div>
+        <div class="chart-note">Categorías de baja frecuencia agrupadas como "Otros".</div>
+      </div>
+    </section>
+
+  </div>
+</main>
+
+<footer class="app-footer">
+  Los datos representan registros de inmunización SRP, no personas ni cobertura. Fuente: datos_nuble_publico.csv.
+</footer>
+
+<script>
+(function(){
+  "use strict";
+
+  var CSV_PATH = "./datos_nuble_publico.csv";
+  var TOP_N_ESTAB = 10;
+  var TOP_N_PAIS = 6;
+
+  var GRUPO_BINS = [
+    [0,0,"0"],[1,4,"1-4"],[5,9,"5-9"],[10,14,"10-14"],[15,19,"15-19"],
+    [20,29,"20-29"],[30,39,"30-39"],[40,49,"40-49"],[50,59,"50-59"],[60,200,"60+"]
+  ];
+
+  // Las 21 comunas de la Region de Nuble (COD_REGION=16), verificadas contra
+  // los datos fuente. Iguales para ocurrencia y residencia.
+  var COMUNAS_NUBLE = [
+    "Chillán","Bulnes","Chillán Viejo","El Carmen","Pemuco","Pinto","Quillón",
+    "San Ignacio","Yungay","Quirihue","Cobquecura","Coelemu","Ninhue",
+    "Portezuelo","Ránquil","Treguaco","San Carlos","Coihueco","Ñiquén",
+    "San Fabián","San Nicolás"
+  ];
+
+  var data = [];
+  var filtered = [];
+
+  // ---------- utilidades ----------
+  function fmt(n){ return n.toLocaleString("es-CL"); }
+
+  function tipoServicioDe(servicioRaw){
+    if(!servicioRaw) return "Sin dato";
+    return servicioRaw.toUpperCase().indexOf("SEREMI") === 0 ? "SEREMI" : "Red Asistencial";
+  }
+
+  // ---------- parser CSV (RFC4180: comillas, comas y comillas escapadas) ----------
+  function parseCSV(text){
+    if(text.charCodeAt(0) === 0xFEFF) text = text.slice(1);
+    var rows = [];
+    var row = [];
+    var field = "";
+    var inQuotes = false;
+    var i = 0, len = text.length;
+    while(i < len){
+      var c = text[i];
+      if(inQuotes){
+        if(c === '"'){
+          if(text[i+1] === '"'){ field += '"'; i += 2; continue; }
+          inQuotes = false; i++; continue;
+        }
+        field += c; i++; continue;
+      } else {
+        if(c === '"'){ inQuotes = true; i++; continue; }
+        if(c === ','){ row.push(field); field=""; i++; continue; }
+        if(c === '\r'){ i++; continue; }
+        if(c === '\n'){ row.push(field); rows.push(row); row=[]; field=""; i++; continue; }
+        field += c; i++; continue;
+      }
+    }
+    if(field.length > 0 || row.length > 0){ row.push(field); rows.push(row); }
+    return rows;
+  }
+
+  // ---------- carga y limpieza (se descartan de inmediato los campos nominales) ----------
+  function construirDataset(rows){
+    var headers = rows[0];
+    var idx = {};
+    headers.forEach(function(h,i){ idx[h]=i; });
+    var out = [];
+    for(var r=1; r<rows.length; r++){
+      var raw = rows[r];
+      if(raw.length < headers.length) continue;
+      var fecha = raw[idx.FECHA_INMUNIZACION] || "";
+      var anio = fecha ? fecha.slice(0,4) : "";
+      var mes = fecha ? fecha.slice(5,7) : "";
+      out.push({
+        id: raw[idx.ID_INMUNIZACION] || "",
+        fecha: fecha,
+        anio: anio,
+        anioMes: fecha ? fecha.slice(0,7) : "",
+        mesNombre: mes,
+        dosis: raw[idx.DOSIS] || "",
+        sexo: raw[idx.SEXO] || "",
+        grupoEtario: raw[idx.GRUPO_ETARIO] || "Sin dato",
+        comunaOcurr: raw[idx.COMUNA_OCURR] || "",
+        comunaResid: raw[idx.COMUNA_RESIDENCIA] || "",
+        establecimiento: raw[idx.ESTABLECIMIENTO] || "",
+        tipoServicio: tipoServicioDe(raw[idx.SERVICIO] || ""),
+        paisOrigen: raw[idx.PAIS_DE_ORIGEN] || "",
+        criterioElegibilidad: raw[idx.CRITERIO_ELEGIBILIDAD] || ""
+      });
+    }
+    return out;
+  }
+
+  // ---------- filtros ----------
+  function poblarSelect(id, valores){
+    var sel = document.getElementById(id);
+    valores.forEach(function(v){
+      var opt = document.createElement("option");
+      opt.value = v; opt.textContent = v;
+      sel.appendChild(opt);
+    });
+  }
+
+  function valoresDistintos(campo){
+    var set = {};
+    data.forEach(function(d){ if(d[campo]) set[d[campo]] = true; });
+    return Object.keys(set).sort();
+  }
+
+  function aplicarFiltros(){
+    var fAnio = document.getElementById("f-anio").value;
+    var fDesde = document.getElementById("f-fecha-desde").value;
+    var fHasta = document.getElementById("f-fecha-hasta").value;
+    var fComunaOcurr = document.getElementById("f-comuna-ocurr").value;
+    var fComunaResid = document.getElementById("f-comuna-resid").value;
+    var fSexo = document.getElementById("f-sexo").value;
+    var fDosis = document.getElementById("f-dosis").value;
+    var fGrupo = document.getElementById("f-grupo-etario").value;
+    var fTipoServicio = document.getElementById("f-tipo-servicio").value;
+    var fEstablecimiento = document.getElementById("f-establecimiento").value.trim().toLowerCase();
+
+    filtered = data.filter(function(d){
+      if(fAnio && d.anio !== fAnio) return false;
+      if(fDesde && d.fecha < fDesde) return false;
+      if(fHasta && d.fecha > fHasta) return false;
+      if(fComunaOcurr && d.comunaOcurr !== fComunaOcurr) return false;
+      if(fComunaResid && d.comunaResid !== fComunaResid) return false;
+      if(fSexo && d.sexo !== fSexo) return false;
+      if(fDosis && d.dosis !== fDosis) return false;
+      if(fGrupo && d.grupoEtario !== fGrupo) return false;
+      if(fTipoServicio && d.tipoServicio !== fTipoServicio) return false;
+      if(fEstablecimiento && d.establecimiento.toLowerCase().indexOf(fEstablecimiento) === -1) return false;
+      return true;
+    });
+
+    render();
+  }
+
+  function limpiarFiltros(){
+    document.getElementById("f-anio").value = "";
+    document.getElementById("f-fecha-desde").value = "";
+    document.getElementById("f-fecha-hasta").value = "";
+    document.getElementById("f-comuna-ocurr").value = "";
+    document.getElementById("f-comuna-resid").value = "";
+    document.getElementById("f-sexo").value = "";
+    document.getElementById("f-dosis").value = "";
+    document.getElementById("f-grupo-etario").value = "";
+    document.getElementById("f-tipo-servicio").value = "";
+    document.getElementById("f-establecimiento").value = "";
+    aplicarFiltros();
+  }
+
+  // ---------- agregaciones ----------
+  function contarPor(arr, campo){
+    var c = {};
+    arr.forEach(function(d){
+      var v = d[campo] || "Sin dato";
+      c[v] = (c[v]||0) + 1;
+    });
+    return c;
+  }
+
+  function topNConOtras(counts, n){
+    var entries = Object.keys(counts).map(function(k){ return [k, counts[k]]; });
+    entries.sort(function(a,b){ return b[1]-a[1]; });
+    var top = entries.slice(0, n);
+    var resto = entries.slice(n).reduce(function(s,e){ return s+e[1]; }, 0);
+    if(resto > 0) top.push(["Otras", resto]);
+    return top;
+  }
+
+  function topNSinOtras(counts, n){
+    var entries = Object.keys(counts).map(function(k){ return [k, counts[k]]; });
+    entries.sort(function(a,b){ return b[1]-a[1]; });
+    return entries.slice(0, n);
+  }
+
+  // ---------- render SVG: barras mariposa (diverging) ----------
+  function barrasMariposa(contenedorId, comunas, valsIzq, valsDer){
+    var w = 680, rowH = 22, legendH = 26, padTop = legendH + 10, padBottom = 6, padSide = 36, labelHalf = 64;
+    var n = comunas.length;
+    var h = padTop + n*rowH + padBottom;
+    var centerX = w/2;
+    var leftAreaW = centerX - labelHalf - padSide;
+    var rightAreaW = (w - padSide) - (centerX + labelHalf);
+    var maxVal = Math.max.apply(null, valsIzq.concat(valsDer).concat([1]));
+
+    var svg = '<svg viewBox="0 0 '+w+' '+h+'" width="100%" height="'+h+'">';
+
+    // leyenda
+    svg += '<rect class="bar" x="'+(centerX-96)+'" y="4" width="10" height="10" rx="2"></rect>';
+    svg += '<text x="'+(centerX-82)+'" y="13" text-anchor="start">Ocurrencia</text>';
+    svg += '<rect class="bar alt" x="'+(centerX+18)+'" y="4" width="10" height="10" rx="2"></rect>';
+    svg += '<text x="'+(centerX+32)+'" y="13" text-anchor="start">Residencia</text>';
+
+    for(var i=0;i<n;i++){
+      var y = padTop + i*rowH;
+      var barLenL = maxVal>0 ? (valsIzq[i]/maxVal)*leftAreaW : 0;
+      var barLenR = maxVal>0 ? (valsDer[i]/maxVal)*rightAreaW : 0;
+      var xL = centerX - labelHalf - barLenL;
+      var xR = centerX + labelHalf;
+
+      svg += '<rect class="bar" x="'+xL.toFixed(1)+'" y="'+y+'" width="'+barLenL.toFixed(1)+'" height="16" rx="2"></rect>';
+      svg += '<rect class="bar alt" x="'+xR.toFixed(1)+'" y="'+y+'" width="'+barLenR.toFixed(1)+'" height="16" rx="2"></rect>';
+      svg += '<text x="'+centerX+'" y="'+(y+13)+'" text-anchor="middle">'+escapeXml(comunas[i])+'</text>';
+      svg += '<text class="bar-label" x="'+(xL-4).toFixed(1)+'" y="'+(y+13)+'" text-anchor="end">'+fmt(valsIzq[i])+'</text>';
+      svg += '<text class="bar-label" x="'+(xR+barLenR+4).toFixed(1)+'" y="'+(y+13)+'" text-anchor="start">'+fmt(valsDer[i])+'</text>';
+    }
+    svg += '</svg>';
+    document.getElementById(contenedorId).innerHTML = svg;
+  }
+
+  // ---------- render SVG: barras verticales ----------
+  function barrasVerticales(contenedorId, labels, valores, opts){
+    opts = opts || {};
+    var w = opts.width || 420, h = opts.height || 220;
+    var padL = 34, padB = 46, padT = 12, padR = 10;
+    var innerW = w - padL - padR, innerH = h - padT - padB;
+    var max = Math.max.apply(null, valores.concat([1]));
+    var n = labels.length;
+    var bw = innerW / n * 0.62;
+    var gap = innerW / n;
+
+    var svg = '<svg viewBox="0 0 '+w+' '+h+'" width="100%" height="'+h+'">';
+    svg += '<line class="axis-line" x1="'+padL+'" y1="'+(h-padB)+'" x2="'+(w-padR)+'" y2="'+(h-padB)+'"/>';
+    for(var i=0;i<n;i++){
+      var x = padL + gap*i + (gap-bw)/2;
+      var bh = max>0 ? (valores[i]/max)*innerH : 0;
+      var y = h - padB - bh;
+      svg += '<rect class="bar" x="'+x.toFixed(1)+'" y="'+y.toFixed(1)+'" width="'+bw.toFixed(1)+'" height="'+bh.toFixed(1)+'" rx="2"></rect>';
+      svg += '<text class="bar-label" x="'+(x+bw/2).toFixed(1)+'" y="'+(y-5).toFixed(1)+'" text-anchor="middle">'+fmt(valores[i])+'</text>';
+      svg += '<text x="'+(x+bw/2).toFixed(1)+'" y="'+(h-padB+16).toFixed(1)+'" text-anchor="middle">'+escapeXml(labels[i])+'</text>';
+    }
+    svg += '</svg>';
+    document.getElementById(contenedorId).innerHTML = svg;
+  }
+
+  // ---------- render SVG: barras horizontales ----------
+  function barrasHorizontales(contenedorId, pares, opts){
+    opts = opts || {};
+    var w = opts.width || 420;
+    var rowH = 24;
+    var padL = 8, padR = 60, labelW = 150;
+    var h = pares.length * rowH + 16;
+    var innerW = w - padL - padR - labelW;
+    var max = Math.max.apply(null, pares.map(function(p){return p[1];}).concat([1]));
+
+    var svg = '<svg viewBox="0 0 '+w+' '+h+'" width="100%" height="'+h+'">';
+    pares.forEach(function(p, i){
+      var y = i*rowH + 8;
+      var bw = max>0 ? (p[1]/max)*innerW : 0;
+      var cls = p[0] === "Otras" || p[0] === "Otros" ? "bar-otras" : "bar";
+      svg += '<text x="'+padL+'" y="'+(y+13).toFixed(1)+'" text-anchor="start">'+escapeXml(truncar(p[0],20))+'</text>';
+      svg += '<rect class="'+cls+'" x="'+(padL+labelW)+'" y="'+y+'" width="'+bw.toFixed(1)+'" height="16" rx="2"></rect>';
+      svg += '<text class="bar-label" x="'+(padL+labelW+bw+6).toFixed(1)+'" y="'+(y+13).toFixed(1)+'" text-anchor="start">'+fmt(p[1])+'</text>';
+    });
+    svg += '</svg>';
+    document.getElementById(contenedorId).innerHTML = svg;
+  }
+
+  // ---------- render SVG: donut ----------
+  function donut(contenedorId, pares){
+    var w = 280, h = 220, r = 78, cx = 100, cy = h/2;
+    var total = pares.reduce(function(s,p){return s+p[1];}, 0) || 1;
+    var colores = ["#39c0c9","#4f8cff","#f2a65a","#7ee787","#c99bff","#f27a7a"];
+    var ang = -Math.PI/2;
+    var svg = '<svg viewBox="0 0 '+w+' '+h+'" width="100%" height="'+h+'">';
+    pares.forEach(function(p, i){
+      var frac = p[1]/total;
+      var ang2 = ang + frac*Math.PI*2;
+      var x1 = cx + r*Math.cos(ang), y1 = cy + r*Math.sin(ang);
+      var x2 = cx + r*Math.cos(ang2), y2 = cy + r*Math.sin(ang2);
+      var large = (ang2-ang) > Math.PI ? 1 : 0;
+      svg += '<path d="M'+cx+','+cy+' L'+x1.toFixed(1)+','+y1.toFixed(1)+' A'+r+','+r+' 0 '+large+' 1 '+x2.toFixed(1)+','+y2.toFixed(1)+' Z" fill="'+colores[i%colores.length]+'" stroke="'+"#0b0f14"+'" stroke-width="1.5"></path>';
+      ang = ang2;
+    });
+    svg += '<circle cx="'+cx+'" cy="'+cy+'" r="42" fill="var(--panel)"></circle>'.replace("var(--panel)","#121820");
+    var legendY = 26;
+    pares.forEach(function(p, i){
+      svg += '<rect x="200" y="'+legendY+'" width="10" height="10" fill="'+colores[i%colores.length]+'"></rect>';
+      svg += '<text x="214" y="'+(legendY+9)+'">'+escapeXml(p[0])+' ('+fmt(p[1])+')</text>';
+      legendY += 18;
+    });
+    svg += '</svg>';
+    document.getElementById(contenedorId).innerHTML = svg;
+  }
+
+  // ---------- render SVG: linea temporal ----------
+  function lineaTemporal(contenedorId, labels, valores){
+    var w = 620, h = 240, padL = 40, padR = 14, padT = 14, padB = 40;
+    var innerW = w - padL - padR, innerH = h - padT - padB;
+    var max = Math.max.apply(null, valores.concat([1]));
+    var n = labels.length;
+    var stepX = n > 1 ? innerW/(n-1) : 0;
+
+    var pts = valores.map(function(v,i){
+      var x = padL + i*stepX;
+      var y = padT + innerH - (max>0 ? (v/max)*innerH : 0);
+      return [x,y];
+    });
+
+    var linePath = pts.map(function(p,i){ return (i===0?"M":"L")+p[0].toFixed(1)+","+p[1].toFixed(1); }).join(" ");
+    var areaPath = linePath + " L"+pts[pts.length-1][0].toFixed(1)+","+(padT+innerH)+" L"+pts[0][0].toFixed(1)+","+(padT+innerH)+" Z";
+
+    var labelEvery = Math.max(1, Math.ceil(n/10));
+
+    var svg = '<svg viewBox="0 0 '+w+' '+h+'" width="100%" height="'+h+'">';
+    svg += '<line class="axis-line" x1="'+padL+'" y1="'+(padT+innerH)+'" x2="'+(w-padR)+'" y2="'+(padT+innerH)+'"/>';
+    svg += '<path class="area-path" d="'+areaPath+'"></path>';
+    svg += '<path class="line-path" d="'+linePath+'"></path>';
+    pts.forEach(function(p,i){
+      if(i % labelEvery === 0 || i === n-1){
+        svg += '<circle class="dot" cx="'+p[0].toFixed(1)+'" cy="'+p[1].toFixed(1)+'" r="2.2"></circle>';
+        svg += '<text x="'+p[0].toFixed(1)+'" y="'+(h-14)+'" text-anchor="middle" transform="rotate(-40 '+p[0].toFixed(1)+' '+(h-14)+')">'+labels[i]+'</text>';
+      }
+    });
+    svg += '</svg>';
+    document.getElementById(contenedorId).innerHTML = svg;
+  }
+
+  function escapeXml(s){
+    return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+  }
+  function truncar(s, n){ return s.length > n ? s.slice(0,n-1)+"…" : s; }
+
+  // ---------- render general ----------
+  function render(){
+    document.getElementById("badge-total").textContent = fmt(data.length)+" registros válidos";
+    document.getElementById("kpi-total").textContent = fmt(filtered.length);
+
+    var porAnio = contarPor(filtered, "anio");
+    var anioTop = Object.keys(porAnio).sort(function(a,b){return porAnio[b]-porAnio[a];})[0] || "—";
+    document.getElementById("kpi-anio").textContent = anioTop;
+    document.getElementById("kpi-anio-sub").textContent = anioTop!=="—" ? fmt(porAnio[anioTop])+" registros" : "\u00A0";
+
+    var porComunaOcurr = contarPor(filtered, "comunaOcurr");
+    var comunaTop = Object.keys(porComunaOcurr).sort(function(a,b){return porComunaOcurr[b]-porComunaOcurr[a];})[0] || "—";
+    document.getElementById("kpi-comuna").textContent = comunaTop;
+    document.getElementById("kpi-comuna-sub").textContent = comunaTop!=="—" ? fmt(porComunaOcurr[comunaTop])+" registros" : "\u00A0";
+
+    var establecimientosDistintos = {};
+    filtered.forEach(function(d){ if(d.establecimiento) establecimientosDistintos[d.establecimiento]=true; });
+    document.getElementById("kpi-establecimientos").textContent = fmt(Object.keys(establecimientosDistintos).length);
+
+    // evolucion mensual
+    var porMes = {};
+    filtered.forEach(function(d){ if(d.anioMes) porMes[d.anioMes] = (porMes[d.anioMes]||0)+1; });
+    var mesesOrdenados = Object.keys(porMes).sort();
+    lineaTemporal("chart-evolucion", mesesOrdenados, mesesOrdenados.map(function(m){return porMes[m];}));
+
+    // comuna ocurrencia vs. residencia (mariposa): 21 comunas de Nuble, orden por total combinado
+    var porComunaResid = contarPor(filtered, "comunaResid");
+    var comunasCombinadas = COMUNAS_NUBLE.map(function(nombre){
+      var o = porComunaOcurr[nombre] || 0;
+      var r = porComunaResid[nombre] || 0;
+      return {nombre:nombre, ocurr:o, resid:r, total:o+r};
+    });
+    comunasCombinadas.sort(function(a,b){ return b.total - a.total; });
+    barrasMariposa("chart-comuna-mariposa",
+      comunasCombinadas.map(function(c){return c.nombre;}),
+      comunasCombinadas.map(function(c){return c.ocurr;}),
+      comunasCombinadas.map(function(c){return c.resid;}));
+
+    // grupo etario (orden fijo, no por frecuencia)
+    var porGrupo = contarPor(filtered, "grupoEtario");
+    var etiquetasGrupo = GRUPO_BINS.map(function(b){return b[2];});
+    if(porGrupo["Sin dato"]) etiquetasGrupo = etiquetasGrupo.concat(["Sin dato"]);
+    barrasVerticales("chart-grupo-etario", etiquetasGrupo, etiquetasGrupo.map(function(g){return porGrupo[g]||0;}), {width:420,height:230});
+
+    // dosis
+    var porDosis = contarPor(filtered, "dosis");
+    var etiquetasDosis = Object.keys(porDosis).sort(function(a,b){return porDosis[b]-porDosis[a];});
+    barrasVerticales("chart-dosis", etiquetasDosis, etiquetasDosis.map(function(d){return porDosis[d];}), {width:380,height:230});
+
+    // sexo
+    var porSexo = contarPor(filtered, "sexo");
+    var paresSexo = Object.keys(porSexo).sort(function(a,b){return porSexo[b]-porSexo[a];}).map(function(s){return [s, porSexo[s]];});
+    donut("chart-sexo", paresSexo);
+
+    // tipo servicio
+    var porTipo = contarPor(filtered, "tipoServicio");
+    var etiquetasTipo = Object.keys(porTipo).sort(function(a,b){return porTipo[b]-porTipo[a];});
+    barrasVerticales("chart-tipo-servicio", etiquetasTipo, etiquetasTipo.map(function(t){return porTipo[t];}), {width:380,height:200});
+
+    // establecimientos (solo los 10 principales, sin agrupar el resto)
+    var porEstab = contarPor(filtered, "establecimiento");
+    barrasHorizontales("chart-establecimientos", topNSinOtras(porEstab, TOP_N_ESTAB));
+
+    // pais origen
+    var porPais = contarPor(filtered, "paisOrigen");
+    barrasHorizontales("chart-pais-origen", topNConOtras(porPais, TOP_N_PAIS));
+  }
+
+  // ---------- inicializacion ----------
+  function inicializarFiltros(){
+    poblarSelect("f-anio", valoresDistintos("anio"));
+    poblarSelect("f-comuna-ocurr", valoresDistintos("comunaOcurr"));
+    poblarSelect("f-comuna-resid", valoresDistintos("comunaResid"));
+    poblarSelect("f-sexo", valoresDistintos("sexo"));
+    poblarSelect("f-dosis", valoresDistintos("dosis"));
+    poblarSelect("f-grupo-etario", GRUPO_BINS.map(function(b){return b[2];}));
+    poblarSelect("f-tipo-servicio", valoresDistintos("tipoServicio"));
+
+    ["f-anio","f-fecha-desde","f-fecha-hasta","f-comuna-ocurr","f-comuna-resid",
+     "f-sexo","f-dosis","f-grupo-etario","f-tipo-servicio"].forEach(function(id){
+      document.getElementById(id).addEventListener("change", aplicarFiltros);
+    });
+    document.getElementById("f-establecimiento").addEventListener("input", aplicarFiltros);
+    document.getElementById("btn-limpiar").addEventListener("click", limpiarFiltros);
+  }
+
+  fetch(CSV_PATH)
+    .then(function(resp){
+      if(!resp.ok) throw new Error("HTTP "+resp.status);
+      return resp.text();
+    })
+    .then(function(text){
+      var rows = parseCSV(text);
+      data = construirDataset(rows);
+      filtered = data.slice();
+      document.getElementById("estado-carga").style.display = "none";
+      document.getElementById("app").style.display = "block";
+      inicializarFiltros();
+      render();
+    })
+    .catch(function(err){
+      document.getElementById("estado-carga").innerHTML =
+        "No se pudo cargar datos_nuble_publico.csv ("+err.message+").<br>"+
+        "Verifique que el servidor local se esté ejecutando y que ese archivo "+
+        "esté en la misma carpeta que index.html.";
+    });
+
+})();
+</script>
+</body>
+</html>
