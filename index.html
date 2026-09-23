@@ -51,6 +51,11 @@
     font-weight:600;
     font-size:13px;
   }
+  header.app-header .ultima-actualizacion{
+    margin-top:8px;
+    color:var(--text-dim);
+    font-size:12px;
+  }
   main{
     padding:20px 28px 60px;
     max-width:1440px;
@@ -209,6 +214,7 @@
   <h1>Sistema de Registro de Personas — SRP</h1>
   <div class="subtitulo">Registros de inmunización | Región de Ñuble</div>
   <div class="total-badge" id="badge-total">Cargando registros…</div>
+  <div class="ultima-actualizacion" id="ultima-actualizacion"></div>
 </header>
 
 <main>
@@ -346,6 +352,7 @@
   "use strict";
 
   var CSV_PATH = "./datos_nuble_publico.csv";
+  var ULTIMA_ACTUALIZACION_PATH = "./ultima_actualizacion.json";
   var TOP_N_ESTAB = 10;
   var TOP_N_PAIS = 6;
 
@@ -805,6 +812,22 @@
     document.getElementById("f-establecimiento").addEventListener("input", aplicarFiltros);
     document.getElementById("btn-limpiar").addEventListener("click", limpiarFiltros);
   }
+
+  // Carga independiente y silenciosa de la fecha de ultima actualizacion.
+  // Si el archivo no existe o el formato es invalido, el visor sigue
+  // funcionando normalmente y simplemente no se muestra nada aqui.
+  fetch(ULTIMA_ACTUALIZACION_PATH)
+    .then(function(resp){
+      if(!resp.ok) throw new Error("no disponible");
+      return resp.json();
+    })
+    .then(function(data){
+      var m = /^(\d{4})-(\d{2})-(\d{2}) (\d{2}):(\d{2}):(\d{2})$/.exec(data && data.fecha_hora || "");
+      if(!m) return;
+      var texto = "Última actualización: " + m[3] + "/" + m[2] + "/" + m[1] + " · " + m[4] + ":" + m[5];
+      document.getElementById("ultima-actualizacion").textContent = texto;
+    })
+    .catch(function(){ /* sin fecha disponible: no se muestra nada, sin afectar el resto del visor */ });
 
   fetch(CSV_PATH)
     .then(function(resp){
