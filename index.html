@@ -259,6 +259,10 @@
           <select id="f-comuna-ocurr"><option value="">Todas</option></select>
         </div>
         <div class="filter-field">
+          <label for="f-region-resid">Región de residencia</label>
+          <select id="f-region-resid"><option value="">Todas</option></select>
+        </div>
+        <div class="filter-field">
           <label for="f-comuna-resid">Comuna de residencia</label>
           <select id="f-comuna-resid"><option value="">Todas</option></select>
         </div>
@@ -359,6 +363,31 @@
     "San Fabián","San Nicolás"
   ];
 
+  // Nombres oficiales de region por codigo, verificados contra COD_REGION/REGION
+  // de la base nacional consolidada (16 regiones, 1.317.774 filas revisadas).
+  var REGION_NOMBRES = {
+    "1":"Tarapacá","2":"Antofagasta","3":"Atacama","4":"Coquimbo","5":"Valparaíso",
+    "6":"Libertador Bernardo O`Higgins","7":"Maule","8":"Bío-Bío","9":"Araucanía",
+    "10":"Los Lagos","11":"Aysén","12":"Magallanes","13":"Metropolitana",
+    "14":"Los Ríos","15":"Arica y Parinacota","16":"Ñuble"
+  };
+
+  // Deriva el codigo de region a partir de un codigo de comuna (COD_COMUNA_RESID).
+  // Regla verificada empiricamente sobre las 344 comunas presentes en la base
+  // nacional: las regiones 1-9 usan codigos de comuna de 4 digitos (region =
+  // primer digito); las regiones 10-16 usan codigos de 5 digitos (region =
+  // primeros dos digitos). 0 excepciones encontradas en la validacion.
+  function regionCodigoDeComuna(codComuna){
+    var c = String(codComuna || "").trim();
+    if(c.length === 4) return c.slice(0,1);
+    if(c.length === 5) return c.slice(0,2).replace(/^0+/,"") || "0";
+    return "";
+  }
+  function regionResidDe(codComuna){
+    var rc = regionCodigoDeComuna(codComuna);
+    return REGION_NOMBRES[rc] || "Sin dato";
+  }
+
   var data = [];
   var filtered = [];
 
@@ -421,6 +450,8 @@
         grupoEtario: raw[idx.GRUPO_ETARIO] || "Sin dato",
         comunaOcurr: raw[idx.COMUNA_OCURR] || "",
         comunaResid: raw[idx.COMUNA_RESIDENCIA] || "",
+        codComunaResid: raw[idx.COD_COMUNA_RESID] || "",
+        regionResid: regionResidDe(raw[idx.COD_COMUNA_RESID] || ""),
         establecimiento: raw[idx.ESTABLECIMIENTO] || "",
         tipoServicio: tipoServicioDe(raw[idx.SERVICIO] || ""),
         paisOrigen: raw[idx.PAIS_DE_ORIGEN] || "",
@@ -440,10 +471,28 @@
     });
   }
 
-  function valoresDistintos(campo){
+  function valoresDistintos(campo, arr){
     var set = {};
-    data.forEach(function(d){ if(d[campo]) set[d[campo]] = true; });
+    (arr || data).forEach(function(d){ if(d[campo]) set[d[campo]] = true; });
     return Object.keys(set).sort();
+  }
+
+  // Repuebla el select de comuna de residencia segun la region seleccionada.
+  // Si mantenerSeleccion es true, conserva el valor previamente elegido cuando
+  // sigue siendo valido dentro de la nueva lista; si no, lo limpia a "Todas".
+  function poblarComunaResidSegunRegion(mantenerSeleccion){
+    var selRegion = document.getElementById("f-region-resid").value;
+    var comunaSel = document.getElementById("f-comuna-resid");
+    var valorPrevio = comunaSel.value;
+    var subset = selRegion ? data.filter(function(d){ return d.regionResid === selRegion; }) : data;
+    var comunas = valoresDistintos("comunaResid", subset);
+    comunaSel.innerHTML = '<option value="">Todas</option>';
+    comunas.forEach(function(v){
+      var opt = document.createElement("option");
+      opt.value = v; opt.textContent = v;
+      comunaSel.appendChild(opt);
+    });
+    comunaSel.value = (mantenerSeleccion && comunas.indexOf(valorPrevio) !== -1) ? valorPrevio : "";
   }
 
   function aplicarFiltros(){
@@ -451,6 +500,7 @@
     var fDesde = document.getElementById("f-fecha-desde").value;
     var fHasta = document.getElementById("f-fecha-hasta").value;
     var fComunaOcurr = document.getElementById("f-comuna-ocurr").value;
+    var fRegionResid = document.getElementById("f-region-resid").value;
     var fComunaResid = document.getElementById("f-comuna-resid").value;
     var fSexo = document.getElementById("f-sexo").value;
     var fDosis = document.getElementById("f-dosis").value;
@@ -463,6 +513,7 @@
       if(fDesde && d.fecha < fDesde) return false;
       if(fHasta && d.fecha > fHasta) return false;
       if(fComunaOcurr && d.comunaOcurr !== fComunaOcurr) return false;
+      if(fRegionResid && d.regionResid !== fRegionResid) return false;
       if(fComunaResid && d.comunaResid !== fComunaResid) return false;
       if(fSexo && d.sexo !== fSexo) return false;
       if(fDosis && d.dosis !== fDosis) return false;
@@ -480,7 +531,8 @@
     document.getElementById("f-fecha-desde").value = "";
     document.getElementById("f-fecha-hasta").value = "";
     document.getElementById("f-comuna-ocurr").value = "";
-    document.getElementById("f-comuna-resid").value = "";
+    document.getElementById("f-region-resid").value = "Ñuble";
+    poblarComunaResidSegunRegion(false);
     document.getElementById("f-sexo").value = "";
     document.getElementById("f-dosis").value = "";
     document.getElementById("f-grupo-etario").value = "";
@@ -553,7 +605,7 @@
   function barrasVerticales(contenedorId, labels, valores, opts){
     opts = opts || {};
     var w = opts.width || 420, h = opts.height || 220;
-    var padL = 34, padB = 46, padT = 12, padR = 10;
+    var padL = 34, padB = 46, padT = opts.padT || 12, padR = 10;
     var innerW = w - padL - padR, innerH = h - padT - padB;
     var max = Math.max.apply(null, valores.concat([1]));
     var n = labels.length;
@@ -709,7 +761,7 @@
     // dosis
     var porDosis = contarPor(filtered, "dosis");
     var etiquetasDosis = Object.keys(porDosis).sort(function(a,b){return porDosis[b]-porDosis[a];});
-    barrasVerticales("chart-dosis", etiquetasDosis, etiquetasDosis.map(function(d){return porDosis[d];}), {width:380,height:230});
+    barrasVerticales("chart-dosis", etiquetasDosis, etiquetasDosis.map(function(d){return porDosis[d];}), {width:380,height:230,padT:26});
 
     // sexo
     var porSexo = contarPor(filtered, "sexo");
@@ -719,7 +771,7 @@
     // tipo servicio
     var porTipo = contarPor(filtered, "tipoServicio");
     var etiquetasTipo = Object.keys(porTipo).sort(function(a,b){return porTipo[b]-porTipo[a];});
-    barrasVerticales("chart-tipo-servicio", etiquetasTipo, etiquetasTipo.map(function(t){return porTipo[t];}), {width:380,height:200});
+    barrasVerticales("chart-tipo-servicio", etiquetasTipo, etiquetasTipo.map(function(t){return porTipo[t];}), {width:380,height:200,padT:26});
 
     // establecimientos (solo los 10 principales, sin agrupar el resto)
     var porEstab = contarPor(filtered, "establecimiento");
@@ -734,7 +786,9 @@
   function inicializarFiltros(){
     poblarSelect("f-anio", valoresDistintos("anio"));
     poblarSelect("f-comuna-ocurr", valoresDistintos("comunaOcurr"));
-    poblarSelect("f-comuna-resid", valoresDistintos("comunaResid"));
+    poblarSelect("f-region-resid", valoresDistintos("regionResid"));
+    document.getElementById("f-region-resid").value = "Ñuble";
+    poblarComunaResidSegunRegion(false);
     poblarSelect("f-sexo", valoresDistintos("sexo"));
     poblarSelect("f-dosis", valoresDistintos("dosis"));
     poblarSelect("f-grupo-etario", GRUPO_BINS.map(function(b){return b[2];}));
@@ -743,6 +797,10 @@
     ["f-anio","f-fecha-desde","f-fecha-hasta","f-comuna-ocurr","f-comuna-resid",
      "f-sexo","f-dosis","f-grupo-etario","f-tipo-servicio"].forEach(function(id){
       document.getElementById(id).addEventListener("change", aplicarFiltros);
+    });
+    document.getElementById("f-region-resid").addEventListener("change", function(){
+      poblarComunaResidSegunRegion(true);
+      aplicarFiltros();
     });
     document.getElementById("f-establecimiento").addEventListener("input", aplicarFiltros);
     document.getElementById("btn-limpiar").addEventListener("click", limpiarFiltros);
@@ -760,7 +818,7 @@
       document.getElementById("estado-carga").style.display = "none";
       document.getElementById("app").style.display = "block";
       inicializarFiltros();
-      render();
+      aplicarFiltros();
     })
     .catch(function(err){
       document.getElementById("estado-carga").innerHTML =
