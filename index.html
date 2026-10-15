@@ -56,6 +56,11 @@
     color:var(--text-dim);
     font-size:12px;
   }
+  /* Logo institucional (LOGO_SEREMI.jpg) a la izquierda del título, sin deformarlo */
+  header.app-header{ display:grid; grid-template-columns:auto minmax(0,1fr); column-gap:18px; }
+  header.app-header > :not(.logo-institucional){ grid-column:2; }
+  header.app-header .total-badge{ justify-self:start; }
+  header.app-header .logo-institucional{ grid-column:1; grid-row:1 / span 4; align-self:start; height:64px; width:auto; border-radius:4px; }
   main{
     padding:20px 28px 60px;
     max-width:1440px;
@@ -202,6 +207,8 @@
   }
   @media (max-width:640px){
     main{ padding:16px; }
+    header.app-header{ column-gap:12px; }
+    header.app-header .logo-institucional{ height:48px; }
     .charts-row3{ grid-template-columns:1fr; }
     .charts-secondary{ grid-template-columns:1fr; }
     .kpi-grid{ grid-template-columns:1fr; }
@@ -211,6 +218,7 @@
 <body>
 
 <header class="app-header">
+  <img class="logo-institucional" src="img/LOGO_SEREMI.jpg" alt="SEREMI de Salud Ñuble — Ministerio de Salud, Gobierno de Chile" width="393" height="356">
   <h1>Sistema de Registro de Personas — SRP</h1>
   <div class="subtitulo">Registros de inmunización | Región de Ñuble</div>
   <div class="total-badge" id="badge-total">Cargando registros…</div>
