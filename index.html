@@ -229,12 +229,16 @@
   <div id="estado-carga">Cargando datos desde datos_nuble_publico.csv…</div>
 
   <div id="app" style="display:none;">
+    <section class="panel" style="margin-bottom:14px;">
+      <div class="chart-note">La insignia muestra el universo general de registros válidos; el KPI y los gráficos responden a los filtros. Al iniciar se selecciona residencia en Ñuble.</div>
+      <div class="chart-note" role="note"><strong>Advertencia:</strong> No se dispone de información para 2022; su ausencia no significa que no se hayan administrado inmunizaciones.</div>
+    </section>
 
     <section class="kpi-grid">
       <div class="kpi-card">
-        <div class="label">Registros válidos</div>
+        <div class="label">Registros válidos según filtros</div>
         <div class="value" id="kpi-total">—</div>
-        <div class="sub">Registros de inmunización</div>
+        <div class="sub" id="kpi-total-sub">Registros de inmunización</div>
       </div>
       <div class="kpi-card">
         <div class="label">Año con mayor cantidad</div>
@@ -310,9 +314,10 @@
     </section>
 
     <section class="panel" style="margin-bottom:14px;">
-      <h2>Registros por comuna: ocurrencia vs. residencia</h2>
+      <h2>Registros en las 21 comunas de Ñuble: ocurrencia vs. residencia</h2>
       <div id="chart-comuna-mariposa"></div>
-      <div class="chart-note">Las 21 comunas de la Región de Ñuble, ordenadas de mayor a menor según el total combinado (ocurrencia + residencia). Ocurrencia a la izquierda, residencia a la derecha, misma escala en ambos lados.</div>
+      <div class="chart-note">La mariposa muestra únicamente las 21 comunas de Ñuble: ocurrencia a la izquierda y residencia a la derecha, con la misma escala. Los registros con ocurrencia fuera de la región no aparecen como barras de ocurrencia y no son registros faltantes. Orden según ocurrencia + residencia.</div>
+      <div class="chart-note" id="resumen-mariposa"></div>
     </section>
 
     <section class="charts-row3">
@@ -352,7 +357,7 @@
 </main>
 
 <footer class="app-footer">
-  Los datos representan registros de inmunización SRP, no personas ni cobertura. Fuente: datos_nuble_publico.csv.
+  Los datos representan registros de inmunización SRP, no personas únicas ni cobertura. Fuente: datos_nuble_publico.csv.
 </footer>
 
 <script>
@@ -692,32 +697,48 @@
   }
 
   // ---------- render SVG: linea temporal ----------
+  function mostrarSinRegistros(contenedorId){
+    document.getElementById(contenedorId).innerHTML = '<div class="chart-note" role="status">Sin registros</div>';
+  }
+
   function lineaTemporal(contenedorId, labels, valores){
+    if(!labels.length){ mostrarSinRegistros(contenedorId); return; }
     var w = 620, h = 240, padL = 40, padR = 14, padT = 14, padB = 40;
     var innerW = w - padL - padR, innerH = h - padT - padB;
     var max = Math.max.apply(null, valores.concat([1]));
-    var n = labels.length;
-    var stepX = n > 1 ? innerW/(n-1) : 0;
-
+    var meses = labels.map(function(label){
+      var partes = label.split("-");
+      return Number(partes[0])*12 + Number(partes[1])-1;
+    });
+    var primero = meses[0], amplitud = meses[meses.length-1]-primero;
     var pts = valores.map(function(v,i){
-      var x = padL + i*stepX;
+      var x = padL + (amplitud ? (meses[i]-primero)/amplitud*innerW : innerW/2);
       var y = padT + innerH - (max>0 ? (v/max)*innerH : 0);
       return [x,y];
     });
-
-    var linePath = pts.map(function(p,i){ return (i===0?"M":"L")+p[0].toFixed(1)+","+p[1].toFixed(1); }).join(" ");
-    var areaPath = linePath + " L"+pts[pts.length-1][0].toFixed(1)+","+(padT+innerH)+" L"+pts[0][0].toFixed(1)+","+(padT+innerH)+" Z";
-
-    var labelEvery = Math.max(1, Math.ceil(n/10));
-
+    // Separate missing-month intervals; do not create zero observations or interpolate gaps.
+    var segmentos = [];
+    pts.forEach(function(p,i){
+      if(i===0 || meses[i]-meses[i-1]!==1) segmentos.push([]);
+      segmentos[segmentos.length-1].push(p);
+    });
+    var linePath = "", areaPath = "";
+    segmentos.forEach(function(segmento){
+      var camino = segmento.map(function(p,i){ return (i===0?"M":"L")+p[0].toFixed(1)+","+p[1].toFixed(1); }).join(" ");
+      linePath += camino + " ";
+      if(segmento.length>1){
+        areaPath += camino + " L"+segmento[segmento.length-1][0].toFixed(1)+","+(padT+innerH)+" L"+segmento[0][0].toFixed(1)+","+(padT+innerH)+" Z ";
+      }
+    });
+    var labelEvery = Math.max(1, Math.ceil(labels.length/10));
     var svg = '<svg viewBox="0 0 '+w+' '+h+'" width="100%" height="'+h+'">';
     svg += '<line class="axis-line" x1="'+padL+'" y1="'+(padT+innerH)+'" x2="'+(w-padR)+'" y2="'+(padT+innerH)+'"/>';
     svg += '<path class="area-path" d="'+areaPath+'"></path>';
     svg += '<path class="line-path" d="'+linePath+'"></path>';
     pts.forEach(function(p,i){
-      if(i % labelEvery === 0 || i === n-1){
-        svg += '<circle class="dot" cx="'+p[0].toFixed(1)+'" cy="'+p[1].toFixed(1)+'" r="2.2"></circle>';
-        svg += '<text x="'+p[0].toFixed(1)+'" y="'+(h-14)+'" text-anchor="middle" transform="rotate(-40 '+p[0].toFixed(1)+' '+(h-14)+')">'+labels[i]+'</text>';
+      svg += '<circle class="dot" data-mes="'+escapeXml(labels[i])+'" cx="'+p[0].toFixed(1)+'" cy="'+p[1].toFixed(1)+'" r="2.2"></circle>';
+      if(i % labelEvery === 0 || i === labels.length-1){
+        svg += '<text x="'+p[0].toFixed(1)+'" y="'+(h-14)+'" text-anchor="middle" transform="rotate(-40 '+p[0].toFixed(1)+' '+(h-14)+')">'+escapeXml(labels[i])+'</text>';
       }
     });
     svg += '</svg>';
@@ -731,8 +752,10 @@
 
   // ---------- render general ----------
   function render(){
-    document.getElementById("badge-total").textContent = fmt(data.length)+" registros válidos";
+    document.getElementById("badge-total").textContent = fmt(data.length)+" registros válidos generales";
     document.getElementById("kpi-total").textContent = fmt(filtered.length);
+    var regionSeleccionada = document.getElementById("f-region-resid").value;
+    document.getElementById("kpi-total-sub").textContent = (regionSeleccionada ? "Residencia: " + regionSeleccionada : "Todas las regiones de residencia") + " | registros de inmunización";
 
     var porAnio = contarPor(filtered, "anio");
     var anioTop = Object.keys(porAnio).sort(function(a,b){return porAnio[b]-porAnio[a];})[0] || "—";
@@ -748,6 +771,12 @@
     filtered.forEach(function(d){ if(d.establecimiento) establecimientosDistintos[d.establecimiento]=true; });
     document.getElementById("kpi-establecimientos").textContent = fmt(Object.keys(establecimientosDistintos).length);
 
+    if(!filtered.length){
+      ["chart-evolucion","chart-comuna-mariposa","chart-grupo-etario","chart-dosis","chart-sexo","chart-tipo-servicio","chart-establecimientos","chart-pais-origen"].forEach(mostrarSinRegistros);
+      document.getElementById("resumen-mariposa").textContent = "Sin registros para los filtros aplicados.";
+      return;
+    }
+
     // evolucion mensual
     var porMes = {};
     filtered.forEach(function(d){ if(d.anioMes) porMes[d.anioMes] = (porMes[d.anioMes]||0)+1; });
@@ -762,6 +791,8 @@
       return {nombre:nombre, ocurr:o, resid:r, total:o+r};
     });
     comunasCombinadas.sort(function(a,b){ return b.total - a.total; });
+    var ocurrenciaNuble = comunasCombinadas.reduce(function(s,c){ return s+c.ocurr; }, 0);
+    document.getElementById("resumen-mariposa").textContent = "Según filtros: " + fmt(filtered.length) + " registros; ocurrencia en las 21 comunas: " + fmt(ocurrenciaNuble) + "; fuera de estas comunas: " + fmt(filtered.length-ocurrenciaNuble) + ". Estos últimos permanecen incluidos en el KPI.";
     barrasMariposa("chart-comuna-mariposa",
       comunasCombinadas.map(function(c){return c.nombre;}),
       comunasCombinadas.map(function(c){return c.ocurr;}),
